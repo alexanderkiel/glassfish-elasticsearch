@@ -1,0 +1,1 @@
+(ns glassfish-elasticsearch.core)
