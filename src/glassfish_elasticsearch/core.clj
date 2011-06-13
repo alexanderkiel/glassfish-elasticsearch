@@ -1,7 +1,9 @@
 (ns glassfish-elasticsearch.core
   (:use [name.choi.joshua.fnparse])
   (:use [clj-time.core])
-  (:use [clj-time.format]))
+  (:use [clj-time.format])
+  (:use [clojure.string])
+  (:use [clojure.contrib.json]))
 
 (defstruct log-entry :date-time :level :product-id :logger-name :name-value-pairs :message)
 
@@ -77,4 +79,12 @@
 (def log-entries
   (first (log-file-parser {:remainder (slurp log-filename)})))
 
-(println (reduce str (map (comp (partial str \newline) :message) log-entries)))
+(defn log-entry-to-json [x]
+  {:date-time (str (:date-time x))
+   :level (subs (upper-case (:level x)) 1)
+   :product-id (:product-id x)
+   :logger-name (:logger-name x)
+   :name-value-pairs (:name-value-pairs x)
+   :message (:message x)})
+
+(pprint-json (map log-entry-to-json log-entries))
