@@ -34,7 +34,7 @@
   (partial parse date-time-formatter))
 
 (def name-value-pair
-  (complex [name (rep+ (except anything (lit \=)))
+  (complex [name (rep+ (except anything (lit-alt-seq "|=")))
             _ (lit \=)
             value (rep+ (except anything (lit \;)))
             _ (lit \;)]
@@ -64,3 +64,17 @@
       logger-name
       name-value-pairs
       message)))
+
+(def log-entry-in-file-parser
+  (complex [log-entry log-entry-parser
+            _ (rep+ (lit \newline))]
+    log-entry))
+
+(def log-file-parser (rep* log-entry-in-file-parser))
+
+(def log-filename (first *command-line-args*))
+
+(def log-entries
+  (first (log-file-parser {:remainder (slurp log-filename)})))
+
+(println (reduce str (map (comp (partial str \newline) :message) log-entries)))
