@@ -1,15 +1,5 @@
-# glassfish-elasticsearch
+glassfish-elasticsearch
 
-FIXME: write description
+An Agent which transfers GlassFish log files such as server.log into elasticsearch.
 
-## Usage
-
-FIXME: write
-
-## Installation
-
-FIXME: write
-
-## License
-
-FIXME: write
+This project is really in its beginnings. Please contact me if you have questions.
