@@ -1,9 +1,10 @@
 (ns glassfish-elasticsearch.core
   (:use [name.choi.joshua.fnparse])
-  (:use [clj-time.core])
+  (:require [clj-time.core :as time])
   (:use [clj-time.format])
-  (:use [clojure.string])
-  (:use [clojure.contrib.json]))
+  (:require [clojure.string :as string])
+  (:use [clojure.contrib.json])
+  (:require [clj-http.client :as client]))
 
 (defstruct log-entry :date-time :level :product-id :logger-name :name-value-pairs :message)
 
@@ -74,7 +75,7 @@
 
 (def log-file-parser (rep* log-entry-in-file-parser))
 
-(def log-filename (first *command-line-args*))
+(def log-filename (second *command-line-args*))
 
 (def log-entries
   (if log-filename
@@ -83,10 +84,24 @@
 
 (defn log-entry-to-json [x]
   {:date-time (str (:date-time x))
-   :level (subs (upper-case (:level x)) 1)
+   :level (subs (string/upper-case (:level x)) 1)
    :product-id (:product-id x)
    :logger-name (:logger-name x)
    :name-value-pairs (:name-value-pairs x)
    :message (:message x)})
 
-(pprint-json (map log-entry-to-json log-entries))
+(def time-id-formatter (formatter "yyyy-MM-dd'T'HH-mm-ss-SSS"))
+
+(defn- thread-id-filter [map]
+  (= (:name map) "_ThreadID"))
+
+(defn index-log-entry [log-entry]
+  (let [base-uri (first *command-line-args*)
+        thread-id (:value (first (filter thread-id-filter (:name-value-pairs log-entry))))
+        id (str (unparse time-id-formatter (:date-time log-entry)) "_" thread-id "_" (rand-int 1000))
+        body (json-str (log-entry-to-json log-entry))]
+    (if base-uri
+      (:status (client/put (str base-uri "/glassfish-log/test/" id) {:body body})))))
+
+(println (filter (partial not= 201) (map index-log-entry log-entries)))
+
