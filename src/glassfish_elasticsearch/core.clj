@@ -77,7 +77,9 @@
 (def log-filename (first *command-line-args*))
 
 (def log-entries
-  (first (log-file-parser {:remainder (slurp log-filename)})))
+  (if log-filename
+    (first (log-file-parser {:remainder (slurp log-filename)}))
+    nil))
 
 (defn log-entry-to-json [x]
   {:date-time (str (:date-time x))
