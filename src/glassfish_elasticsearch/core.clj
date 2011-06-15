@@ -1,4 +1,5 @@
 (ns glassfish-elasticsearch.core
+  (:use [glassfish_elasticsearch.md5])
   (:use [name.choi.joshua.fnparse])
   (:require [clj-time.core :as time])
   (:use [clj-time.format])
@@ -97,11 +98,14 @@
 
 (defn index-log-entry [log-entry]
   (let [base-uri (first *command-line-args*)
-        thread-id (:value (first (filter thread-id-filter (:name-value-pairs log-entry))))
-        id (str (unparse time-id-formatter (:date-time log-entry)) "_" thread-id "_" (rand-int 1000))
+        thread-id (format "%04d" (Integer/parseInt (:value (first (filter thread-id-filter (:name-value-pairs log-entry))))))
+        id (str (unparse time-id-formatter (:date-time log-entry)) "_" thread-id "_" (md5-sum (:message log-entry)))
         body (json-str (log-entry-to-json log-entry))]
     (if base-uri
-      (:status (client/put (str base-uri "/glassfish-log/test/" id) {:body body})))))
+      (client/put (str base-uri "/glassfish-log/test/" id) {:body body}))))
 
-(println (filter (partial not= 201) (map index-log-entry log-entries)))
+(defn- response-filter [response]
+  (not= 201 (:status response)))
+
+(println (map println-str (filter response-filter (map index-log-entry log-entries))))
 
