@@ -1,4 +1,5 @@
 (ns glassfish-elasticsearch.core
+  (:use [clojure.java.io])
   (:use [glassfish_elasticsearch.md5])
   (:use [name.choi.joshua.fnparse])
   (:require [clj-time.core :as time])
@@ -71,17 +72,10 @@
 
 (def log-entry-in-file-parser
   (complex [log-entry log-entry-parser
-            _ (rep+ (lit \newline))]
+            _ (rep* (lit \space))]
     log-entry))
 
 (def log-file-parser (rep* log-entry-in-file-parser))
-
-(def log-filename (second *command-line-args*))
-
-(def log-entries
-  (if log-filename
-    (first (log-file-parser {:remainder (slurp log-filename)}))
-    nil))
 
 (defn log-entry-to-json [x]
   {:date-time (str (:date-time x))
@@ -98,14 +92,40 @@
 
 (defn index-log-entry [log-entry]
   (let [base-uri (first *command-line-args*)
-        thread-id (format "%04d" (Integer/parseInt (:value (first (filter thread-id-filter (:name-value-pairs log-entry))))))
-        id (str (unparse time-id-formatter (:date-time log-entry)) "_" thread-id "_" (md5-sum (:message log-entry)))
+        message (if (:message log-entry) (:message log-entry) "")
+        id (str (unparse time-id-formatter (:date-time log-entry)) "_" (md5-sum message))
         body (json-str (log-entry-to-json log-entry))]
     (if base-uri
-      (client/put (str base-uri "/glassfish-log/test/" id) {:body body}))))
+      (try
+        (client/put (str base-uri "/glassfish-log/test/" id) {:body body})
+        (catch java.lang.Exception e (println "Exception: " (.getMessage e)))))))
 
 (defn- response-filter [response]
   (not= 201 (:status response)))
 
-(println (map println-str (filter response-filter (map index-log-entry log-entries))))
+(defn index-line [line]
+  (let [log-entry (first (log-entry-parser {:remainder line}))]
+    (try
+      (index-log-entry log-entry)
+      (catch java.lang.Exception e (println (.getClass e) (.getMessage e))))))
 
+(defn- join-partitions [partitions partition]
+  (if (.startsWith ^String (first partition) "[#|")
+    (conj partitions partition)
+    (let [partition-to-add (first partitions)
+          new-partition (conj partition (first partition-to-add))]
+      (conj (rest partitions) new-partition))))
+
+(defn index-log-file [reader]
+  "Indexes the contents of a log file. This function requires an open reader of the log file."
+  (let [lines (line-seq reader)
+        partitions (partition-by #(.startsWith ^String % "[#|") lines)
+        non-empty-partitions (filter #(or (> (count %) 1) (not (empty? (first %)))) partitions)
+        joined-partitions (reduce join-partitions '() non-empty-partitions)
+        final-partitions (map apply-str joined-partitions)
+        index-responses (map index-line final-partitions)]
+    (doall (map println (filter response-filter index-responses)))))
+
+(when *command-line-args*
+  (with-open [reader (reader (second *command-line-args*))]
+    (index-log-file reader)))
