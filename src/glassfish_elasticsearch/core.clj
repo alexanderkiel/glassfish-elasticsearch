@@ -1,6 +1,7 @@
 (ns glassfish-elasticsearch.core
-  (:use [clojure.java.io])
+  (:use [glassfish_elasticsearch.util])
   (:use [glassfish_elasticsearch.md5])
+  (:use [clojure.java.io])
   (:use [name.choi.joshua.fnparse])
   (:require [clj-time.core :as time])
   (:use [clj-time.format])
@@ -12,8 +13,6 @@
 
 (def make-log-entry
   (partial struct log-entry))
-
-(def apply-str (partial apply str))
 
 (def start-lit (lit-conc-seq "[#|"))
 (def end-lit (lit-conc-seq "|#]"))
