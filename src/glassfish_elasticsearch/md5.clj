@@ -1,4 +1,4 @@
-(ns glassfish_elasticsearch.md5
+(ns glassfish-elasticsearch.md5
   (:import
     (java.security
       NoSuchAlgorithmException

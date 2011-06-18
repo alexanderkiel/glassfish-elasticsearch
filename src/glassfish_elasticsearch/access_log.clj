@@ -1,6 +1,7 @@
-(ns glassfish_elasticsearch.access-log
-  (:use [glassfish_elasticsearch.util])
-  (:use [glassfish_elasticsearch.md5])
+(ns glassfish-elasticsearch.access-log
+  (:use [glassfish-elasticsearch.util])
+  (:use [glassfish-elasticsearch.md5])
+  (:use [glassfish-elasticsearch.http])
   (:use [clojure.java.io])
   (:use [name.choi.joshua.fnparse])
   (:require [clj-time.core :as time])
@@ -20,6 +21,7 @@
 
 (def space-lit (lit \space))
 (def quote-lit (lit \"))
+(def hyphen-lit (lit \-))
 (def open-bracket-lit (lit \[))
 (def close-bracket-lit (lit \]))
 
@@ -52,7 +54,9 @@
     (make-request-line method path protocol)))
 
 (def number-parser
-  (semantics (rep+ (lit-alt-seq "0123456789")) apply-str))
+  (alt
+    (semantics (rep+ (lit-alt-seq "0123456789")) apply-str)
+    (constant-semantics hyphen-lit nil)))
 
 (defn- convert-hyphen-to-nil [value]
   (if (= value "-")
@@ -116,15 +120,20 @@
 
 (defn- index-log-entry [log-entry base-uri app-name]
   (let [id (build-id (:date-time log-entry))
-        uri (str base-uri "/glassfish-access-log/clf/" id)
+        uri (str base-uri "/clf/" id)
         body (json-str (merge log-entry {:date-time (str (:date-time log-entry))} {:app-name app-name}))]
     (put uri body)))
 
 (defn- index-line [base-uri app-name line]
   (index-log-entry (rule-match clf-parser prn prn {:remainder line}) base-uri app-name))
 
+(defn- create-index [base-uri]
+  (when (returns-404? (str base-uri "/_status"))
+    (println "Created the index with default settings.")
+    (client/put base-uri)))
+
 (defn- create-mapping [base-uri]
-  (let [uri (str base-uri "/glassfish-access-log/clf/_mapping")
+  (let [uri (str base-uri "/clf/_mapping")
         body (json-str {:clf {:properties {
       :app-name {:type "string" :index "not_analyzed"}
       :host {:type "ip"}
@@ -145,13 +154,14 @@
    the log file, the base URI of a elasticsearch node and an application name."
   (let [lines (line-seq reader)]
     (do
+      (create-index base-uri)
       (create-mapping base-uri)
       (reduce = (map (partial index-line base-uri app-name) lines)))))
 
 (let [base-uri (nth *command-line-args* 0)
       app-name (nth *command-line-args* 1)
       filename (nth *command-line-args* 2)]
-  (do
+  (when (and base-uri app-name filename)
     (println "Index contents of:" filename)
     (println "with app-name:" app-name)
     (println "to:" base-uri)

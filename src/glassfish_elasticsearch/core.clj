@@ -1,6 +1,6 @@
 (ns glassfish-elasticsearch.core
-  (:use [glassfish_elasticsearch.util])
-  (:use [glassfish_elasticsearch.md5])
+  (:use [glassfish-elasticsearch.util])
+  (:use [glassfish-elasticsearch.md5])
   (:use [clojure.java.io])
   (:use [name.choi.joshua.fnparse])
   (:require [clj-time.core :as time])

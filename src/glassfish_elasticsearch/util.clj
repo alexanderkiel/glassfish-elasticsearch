@@ -1,3 +1,3 @@
-(ns glassfish_elasticsearch.util)
+(ns glassfish-elasticsearch.util)
 
 (def apply-str (partial apply str))
