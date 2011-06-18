@@ -54,12 +54,20 @@
 (def number-parser
   (semantics (rep+ (lit-alt-seq "0123456789")) apply-str))
 
+(defn- convert-hyphen-to-nil [value]
+  (if (= value "-")
+    nil
+    value))
+
+(def part-parser
+  (semantics anything-but-space+ convert-hyphen-to-nil))
+
 (def clf-parser
-  (complex [host anything-but-space+
+  (complex [host part-parser
             _ space-lit
-            ident anything-but-space+
+            ident part-parser
             _ space-lit
-            user anything-but-space+
+            user part-parser
             _ space-lit
             date-time date-time-parser
             _ space-lit
@@ -101,29 +109,51 @@
   (let [id (swap! id-atom inc-id date-time)]
     (str (unparse time-id-formatter (:date-time id)) "_" (:count id))))
 
-(defn- index-log-entry [log-entry base-uri type]
+(defn- put [uri body]
+  (try
+    (client/put uri {:body body})
+    (catch java.lang.Exception e (println "Exception while sending the JSON to elasticsearch [" uri "]:" (.getMessage e) "body:" body))))
+
+(defn- index-log-entry [log-entry base-uri app-name]
   (let [id (build-id (:date-time log-entry))
-        uri (str base-uri "/glassfish-access-log/" type "/" id)
-        body (json-str (merge log-entry {:date-time (str (:date-time log-entry))}))]
-    (try
-      (client/put uri {:body body})
-      (catch java.lang.Exception e (println "Exception while sending the JSON to elasticsearch [" uri "]:" (.getMessage e) "body:" body)))))
+        uri (str base-uri "/glassfish-access-log/clf/" id)
+        body (json-str (merge log-entry {:date-time (str (:date-time log-entry))} {:app-name app-name}))]
+    (put uri body)))
 
-(defn- index-line [base-uri type line]
-  (index-log-entry (rule-match clf-parser prn prn {:remainder line}) base-uri type))
+(defn- index-line [base-uri app-name line]
+  (index-log-entry (rule-match clf-parser prn prn {:remainder line}) base-uri app-name))
 
-(defn- index-log-file [reader base-uri type]
+(defn- create-mapping [base-uri]
+  (let [uri (str base-uri "/glassfish-access-log/clf/_mapping")
+        body (json-str {:clf {:properties {
+      :app-name {:type "string" :index "not_analyzed"}
+      :host {:type "ip"}
+      :ident {:type "string" :index "not_analyzed"}
+      :user {:type "string" :index "not_analyzed"}
+      :date-time {:type "date" :format "date_time"}
+      :request-line {:properties {
+        :method {:type "string" :index "not_analyzed"}
+        :path {:type "string" :index "not_analyzed"}
+        :protocol {:type "string" :index "not_analyzed"}
+        }}
+      :response-code {:type "integer"}
+      :response-size {:type "integer"}}}})]
+    (put uri body)))
+
+(defn- index-log-file [reader base-uri app-name]
   "Indexes the contents of a log file. This function requires an open reader of
-   the log file and the base URI of a elasticsearch node."
+   the log file, the base URI of a elasticsearch node and an application name."
   (let [lines (line-seq reader)]
-    (reduce = (map (partial index-line base-uri type) lines))))
+    (do
+      (create-mapping base-uri)
+      (reduce = (map (partial index-line base-uri app-name) lines)))))
 
 (let [base-uri (nth *command-line-args* 0)
-      type (nth *command-line-args* 1)
+      app-name (nth *command-line-args* 1)
       filename (nth *command-line-args* 2)]
   (do
     (println "Index contents of:" filename)
-    (println "as type:" type)
+    (println "with app-name:" app-name)
     (println "to:" base-uri)
     (with-open [reader (reader filename)]
-      (index-log-file reader base-uri type))))
+      (index-log-file reader base-uri app-name))))
