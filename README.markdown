@@ -76,7 +76,7 @@ facet would report the individual path segments and not the whole path.
 
 ### Index Access Logs
 
-A the current state of the project, you can do the following:
+At the current state of the project, you can do the following:
 
 * build the project with _lein uberjar_ and
 * call _sh index-access-log.sh_ which will tell you which arguments are required.
