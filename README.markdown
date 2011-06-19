@@ -81,5 +81,7 @@ At the current state of the project, you can do the following:
 * build the project with _lein uberjar_ and
 * call _sh index-access-log.sh_ which will tell you which arguments are required.
 
+Note: You will need at least lein 1.5.2.
+
 [1]: <http://httpd.apache.org/docs/2.0/logs.html>
 [2]: <http://www.elasticsearch.org/guide/reference/mapping/>

@@ -1,4 +1,5 @@
-(ns glassfish-elasticsearch.access-log
+(ns glassfish-elasticsearch.access-log.access-log
+  (:use [glassfish-elasticsearch.access-log.parser])
   (:use [glassfish-elasticsearch.util])
   (:use [glassfish-elasticsearch.md5])
   (:use [glassfish-elasticsearch.http])
@@ -9,79 +10,6 @@
   (:require [clojure.string :as string])
   (:use [clojure.contrib.json])
   (:require [clj-http.client :as client]))
-
-; Apache Common Log Format (CLF) http://httpd.apache.org/docs/2.0/logs.html
-(defstruct clf-entry :host :ident :user :date-time :request-line :response-code :response-size)
-
-(defstruct request-line :method :path :protocol)
-
-(def make-clf-entry (partial struct clf-entry))
-
-(def make-request-line (partial struct request-line))
-
-(def space-lit (lit \space))
-(def quote-lit (lit \"))
-(def hyphen-lit (lit \-))
-(def open-bracket-lit (lit \[))
-(def close-bracket-lit (lit \]))
-
-(def anything-but-space+
-  (semantics (rep+ (except anything space-lit)) apply-str))
-
-(def anything-but-quote+
-  (semantics (rep+ (except anything quote-lit)) apply-str))
-
-(def date-time-formatter
-  (formatter "dd/MMM/yyyy:HH:mm:ss Z"))
-
-(def parse-date-time
-  (partial parse date-time-formatter))
-
-(def date-time-parser
-  (complex [_ open-bracket-lit
-            date-time (rep* (except anything close-bracket-lit))
-            _ close-bracket-lit]
-    (parse-date-time (apply-str date-time))))
-
-(def request-line-parser
-  (complex [_ quote-lit
-            method anything-but-space+
-            _ space-lit
-            path anything-but-space+
-            _ space-lit
-            protocol anything-but-quote+
-            _ quote-lit]
-    (make-request-line method path protocol)))
-
-(def number-parser
-  (alt
-    (semantics (rep+ (lit-alt-seq "0123456789")) apply-str)
-    (constant-semantics hyphen-lit nil)))
-
-(defn- convert-hyphen-to-nil [value]
-  (if (= value "-")
-    nil
-    value))
-
-(def part-parser
-  (semantics anything-but-space+ convert-hyphen-to-nil))
-
-(def clf-parser
-  (complex [host part-parser
-            _ space-lit
-            ident part-parser
-            _ space-lit
-            user part-parser
-            _ space-lit
-            date-time date-time-parser
-            _ space-lit
-            request-line request-line-parser
-            _ space-lit
-            response-code number-parser
-            _ space-lit
-            response-size number-parser
-            _ (rep* anything)]
-    (make-clf-entry host ident user date-time request-line response-code response-size)))
 
 (def time-id-formatter (formatter "yyyy-MM-dd'T'HH-mm-ss"))
 

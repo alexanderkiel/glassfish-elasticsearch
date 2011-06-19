@@ -1,7 +1,7 @@
 (ns glassfish-elasticsearch.core-test
   (:use [glassfish-elasticsearch.core] :reload-all)
   (:use [name.choi.joshua.fnparse])
-  (:use [clj-time.core])
+  (:use [clj-time.core :only (date-time)])
   (:use [clojure.test]))
 
 (def example "[#|2009-08-06T13:41:09.192-0700|INFO|glassfish|javax.enterprise.system.core.security.com.sun.enterprise.security|_ThreadID=20;_ThreadName=Thread-1;|SEC1002: Security Manager is OFF.|#]")

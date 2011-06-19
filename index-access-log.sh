@@ -24,4 +24,4 @@ if [ -z $LOG_FILE ]; then
     exit 1
 fi
 
-java -cp glassfish-elasticsearch-0.1-SNAPSHOT-standalone.jar clojure.main @glassfish_elasticsearch/access_log.clj $BASE_URI $APP_NAME $LOG_FILE
+java -cp glassfish-elasticsearch-0.1-SNAPSHOT-standalone.jar clojure.main @glassfish_elasticsearch/access_log/access_log.clj $BASE_URI $APP_NAME $LOG_FILE
